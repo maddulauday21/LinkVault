@@ -1,0 +1,15 @@
+# Node dependencies
+node_modules/
+application/node_modules/
+express-app/node_modules/
+
+# Build outputs
+build/
+dist/
+
+# Environment files
+.env
+
+# OS junk
+.DS_Store
+Thumbs.db
