@@ -13,7 +13,10 @@ const cleanupExpired = async () => {
             if (item.filePath && fs.existsSync(item.filePath)) {
                 fs.unlinkSync(item.filePath);
             }
+
+            await Content.deleteOne({ _id: item._id });
         }
+
 
         console.log("Expired content cleanup done");
 
@@ -23,3 +26,5 @@ const cleanupExpired = async () => {
 };
 
 module.exports = cleanupExpired;
+
+

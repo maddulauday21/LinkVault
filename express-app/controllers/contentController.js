@@ -52,18 +52,27 @@ exports.getContent = async (req, res) => {
         const content = await Content.findOne({ uniqueId: req.params.id });
 
         if (!content) {
-            return res.send(renderPage("Invalid Link", `
-        <h2 style="color:#ef4444;">Invalid Link</h2>
+  return res.status(403).send(`
+    <html>
+      <body style="font-family:sans-serif;text-align:center;padding:50px;">
+        <h1 style="color:red;">403 - Invalid Link</h1>
         <p>This link does not exist.</p>
-      `));
-        }
+      </body>
+    </html>
+  `);
+}
 
-        if (new Date() > content.expiryTime) {
-            return res.send(renderPage("Link Expired", `
-        <h2 style="color:#ef4444;">Link Expired</h2>
+if (new Date() > content.expiryTime) {
+  return res.status(403).send(`
+    <html>
+      <body style="font-family:sans-serif;text-align:center;padding:50px;">
+        <h1 style="color:red;">403 - Link Expired</h1>
         <p>This content is no longer available.</p>
-      `));
-        }
+      </body>
+    </html>
+  `);
+}
+
 
         // TEXT CONTENT
         if (content.type === "text") {
@@ -153,12 +162,14 @@ exports.downloadFile = async (req, res) => {
         const content = await Content.findOne({ uniqueId: req.params.id });
 
         if (!content) {
-            return res.status(404).send("File not found");
-        }
+  return res.status(403).send("403 - Invalid Link");
+}
+
 
         if (new Date() > content.expiryTime) {
-            return res.send("Link Expired");
-        }
+  return res.status(403).send("403 - Link Expired");
+}
+
 
         console.log("File path:", content.filePath); // debug
 
