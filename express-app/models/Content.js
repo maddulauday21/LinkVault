@@ -25,7 +25,12 @@ const ContentSchema = new mongoose.Schema({
     oneTimeView: {
   type: Boolean,
   default: false
+},
+isConsumed: {
+  type: Boolean,
+  default: false
 }
+
 
 });
 
