@@ -2,6 +2,11 @@ const Content = require("../models/Content");
 const { v4: uuidv4 } = require("uuid");
 const fs = require("fs");
 
+
+// ============================
+// Upload Content
+// ============================
+
 exports.uploadContent = async (req, res) => {
   try {
     const { text, expiry, oneTimeView } = req.body;
@@ -48,6 +53,11 @@ exports.uploadContent = async (req, res) => {
   }
 };
 
+
+// ============================
+// Get Content (Link Access)
+// ============================
+
 exports.getContent = async (req, res) => {
   try {
     const content = await Content.findOne({ uniqueId: req.params.id });
@@ -68,15 +78,17 @@ exports.getContent = async (req, res) => {
       ));
     }
 
-    // -------------------------
+    // ============================
     // TEXT CONTENT
-    // -------------------------
+    // ============================
+
     if (content.type === "text") {
 
       const safeText = content.textData
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
+      // One-time: consume immediately on view
       if (content.oneTimeView) {
         await Content.deleteOne({ _id: content._id });
       }
@@ -116,9 +128,10 @@ ${safeText}
       `));
     }
 
-    // -------------------------
+    // ============================
     // FILE CONTENT
-    // -------------------------
+    // ============================
+
     if (content.type === "file") {
 
       return res.send(renderPage("File Download", `
@@ -139,6 +152,11 @@ ${safeText}
   }
 };
 
+
+// ============================
+// Download File
+// ============================
+
 exports.downloadFile = async (req, res) => {
   try {
     const content = await Content.findOne({ uniqueId: req.params.id });
@@ -157,20 +175,19 @@ exports.downloadFile = async (req, res) => {
       return res.status(404).send("File not found");
     }
 
-    // One-time view logic for files
+    // One-time: consume when download happens
     if (content.oneTimeView) {
-      return res.download(filePath, content.originalFileName, async (err) => {
-        if (!err) {
-          try {
-            fs.unlinkSync(filePath);
-            await Content.deleteOne({ _id: content._id });
-          } catch (deleteErr) {
-            console.error("Delete error:", deleteErr);
-          }
+
+      await Content.deleteOne({ _id: content._id });
+
+      return res.download(filePath, content.originalFileName, (err) => {
+        if (!err && fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
         }
       });
     }
 
+    // Normal download
     res.download(filePath, content.originalFileName);
 
   } catch (err) {
@@ -178,6 +195,11 @@ exports.downloadFile = async (req, res) => {
     res.status(500).send("Download error");
   }
 };
+
+
+// ============================
+// HTML Wrapper
+// ============================
 
 function renderPage(title, bodyContent) {
   return `
@@ -189,9 +211,8 @@ function renderPage(title, bodyContent) {
       body {
         margin: 0;
         font-family: system-ui, -apple-system, BlinkMacSystemFont,
-             "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
-             "Open Sans", "Helvetica Neue", sans-serif;
-
+                     "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+                     "Open Sans", "Helvetica Neue", sans-serif;
         background: #f3f4f6;
         display: flex;
         justify-content: center;

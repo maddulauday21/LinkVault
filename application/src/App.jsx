@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -49,6 +50,14 @@ function App() {
       formData.append("oneTimeView", oneTimeView);
       const res = await axios.post("http://localhost:5000/content/upload", formData)
 
+      setText("");
+      setFile(null);
+      setExpiry(null);
+      setLink(res.data.link);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
 
 
       setLink(res.data.link);
@@ -62,6 +71,7 @@ function App() {
     }
   };
   const now = new Date();
+  const fileInputRef = useRef(null);
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
@@ -116,8 +126,10 @@ function App() {
               <input
                 type="file"
                 className="w-full"
+                ref={fileInputRef}
                 onChange={(e) => setFile(e.target.files[0])}
               />
+
             )}
 
 
