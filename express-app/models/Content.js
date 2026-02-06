@@ -21,7 +21,12 @@ const ContentSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    oneTimeView: {
+  type: Boolean,
+  default: false
+}
+
 });
 
 module.exports = mongoose.model("Content", ContentSchema);

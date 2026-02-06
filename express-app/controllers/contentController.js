@@ -1,9 +1,10 @@
 const Content = require("../models/Content");
 const { v4: uuidv4 } = require("uuid");
+const fs = require("fs");
 
 exports.uploadContent = async (req, res) => {
   try {
-    const { text, expiry } = req.body;
+    const { text, expiry, oneTimeView } = req.body;
 
     if (!text && !req.file) {
       return res.status(400).json({ message: "Upload text or file" });
@@ -13,17 +14,16 @@ exports.uploadContent = async (req, res) => {
 
     const expiryTime = expiry
       ? new Date(expiry)
-      : new Date(Date.now() + 10 * 60 * 1000); // default 10 minutes
+      : new Date(Date.now() + 10 * 60 * 1000);
 
-    // 🔥 Clean text properly
     let cleanedText = null;
 
     if (text) {
       cleanedText = text
-        .split("\n")               // split into lines
-        .map(line => line.trim())  // remove leading/trailing spaces
-        .join("\n")                // join back with new lines
-        .trim();                   // final trim
+        .split("\n")
+        .map(line => line.trim())
+        .join("\n")
+        .trim();
     }
 
     const newContent = new Content({
@@ -32,6 +32,7 @@ exports.uploadContent = async (req, res) => {
       textData: cleanedText,
       filePath: req.file ? req.file.path : null,
       originalFileName: req.file ? req.file.originalname : null,
+      oneTimeView: oneTimeView === "true",
       expiryTime
     });
 
@@ -48,97 +49,80 @@ exports.uploadContent = async (req, res) => {
 };
 
 exports.getContent = async (req, res) => {
-    try {
-        const content = await Content.findOne({ uniqueId: req.params.id });
+  try {
+    const content = await Content.findOne({ uniqueId: req.params.id });
 
-        if (!content) {
-  return res.status(403).send(`
-    <html>
-      <body style="font-family:sans-serif;text-align:center;padding:50px;">
-        <h1 style="color:red;">403 - Invalid Link</h1>
-        <p>This link does not exist.</p>
-      </body>
-    </html>
-  `);
-}
+    if (!content) {
+      return res.status(403).send(renderPage(
+        "Invalid Link",
+        `<h2 style="color:red;">403 - Invalid Link</h2>
+         <p>This link does not exist.</p>`
+      ));
+    }
 
-if (new Date() > content.expiryTime) {
-  return res.status(403).send(`
-    <html>
-      <body style="font-family:sans-serif;text-align:center;padding:50px;">
-        <h1 style="color:red;">403 - Link Expired</h1>
-        <p>This content is no longer available.</p>
-      </body>
-    </html>
-  `);
-}
+    if (new Date() > content.expiryTime) {
+      return res.status(403).send(renderPage(
+        "Link Expired",
+        `<h2 style="color:red;">403 - Link Expired</h2>
+         <p>This content is no longer available.</p>`
+      ));
+    }
 
+    // -------------------------
+    // TEXT CONTENT
+    // -------------------------
+    if (content.type === "text") {
 
-        // TEXT CONTENT
-        if (content.type === "text") {
-            return res.send(`
-    <html>
-    <head>
-      <title>Shared Text</title>
-    </head>
-    <body style="font-family:sans-serif;background:#f3f4f6;
-                 display:flex;align-items:center;justify-content:center;
-                 height:100vh;margin:0;">
-      <div style="background:white;padding:40px;border-radius:10px;
-                  box-shadow:0 10px 25px rgba(0,0,0,0.1);
-                  text-align:center;max-width:600px;width:100%;">
-        
-        <h1 style="color:#2563eb;">Shared Text</h1>
+      const safeText = content.textData
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 
-       <pre id="textBox"
-             style="margin-top:20px;padding:20px;
-             border:1px solid #ccc;
-             border-radius:8px;
-             background:#f9fafb;
-             text-align:left;
-             white-space:pre-wrap;
-             word-wrap:break-word;
-             font-family:inherit;">
-${content.textData}
+      if (content.oneTimeView) {
+        await Content.deleteOne({ _id: content._id });
+      }
+
+      return res.send(renderPage("Shared Text", `
+        <h2 style="color:#2563eb;">Shared Text</h2>
+
+        <pre id="textBox"
+          style="margin-top:20px;padding:20px;
+          border:1px solid #ccc;
+          border-radius:8px;
+          background:#f9fafb;
+          text-align:left;
+          white-space:pre-wrap;
+          font-family:inherit;
+          word-wrap:break-word;">
+${safeText}
         </pre>
 
+        <button onclick="copyText(this)" class="btn btn-blue">
+          Copy to Clipboard
+        </button>
 
-        <br>
+        <script>
+          function copyText(button) {
+            const text = document.getElementById("textBox").innerText;
+            navigator.clipboard.writeText(text).then(() => {
+              button.innerText = "Copied";
+              button.className = "btn btn-green";
+              setTimeout(() => {
+                button.innerText = "Copy to Clipboard";
+                button.className = "btn btn-blue";
+              }, 2000);
+            });
+          }
+        </script>
+      `));
+    }
 
-        <button onclick="copyText(this)"
-        style="padding:10px 20px;background:#2563eb;color:white;
-        border:none;border-radius:5px;cursor:pointer;">
-  Copy to Clipboard
-</button>
+    // -------------------------
+    // FILE CONTENT
+    // -------------------------
+    if (content.type === "file") {
 
-<script>
-  function copyText(button) {
-    const text = document.getElementById("textBox").innerText;
-
-    navigator.clipboard.writeText(text).then(() => {
-      button.innerText = "Copied";
-      button.style.background = "#16a34a";
-
-      setTimeout(() => {
-        button.innerText = "Copy to Clipboard";
-        button.style.background = "#2563eb";
-      }, 2000);
-    });
-  }
-</script>
-
-      </div>
-    </body>
-    </html>
-  `);
-        }
-
-
-        // FILE CONTENT
-        if (content.type === "file") {
-            return res.send(renderPage("File Download", `
+      return res.send(renderPage("File Download", `
         <h2 style="color:#16a34a;">File Ready for Download</h2>
-
         <p>Your file is available below.</p>
 
         <a href="/content/download/${content.uniqueId}">
@@ -147,42 +131,56 @@ ${content.textData}
           </button>
         </a>
       `));
-        }
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Server Error");
     }
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server Error");
+  }
 };
 
-
-
 exports.downloadFile = async (req, res) => {
-    try {
-        const content = await Content.findOne({ uniqueId: req.params.id });
+  try {
+    const content = await Content.findOne({ uniqueId: req.params.id });
 
-        if (!content) {
-  return res.status(403).send("403 - Invalid Link");
-}
-
-
-        if (new Date() > content.expiryTime) {
-  return res.status(403).send("403 - Link Expired");
-}
-
-
-        console.log("File path:", content.filePath); // debug
-
-        res.download(content.filePath, content.originalFileName);
-
-    } catch (err) {
-        console.error("Download error:", err);
-        res.status(500).send("Download error");
+    if (!content) {
+      return res.status(403).send("403 - Invalid Link");
     }
+
+    if (new Date() > content.expiryTime) {
+      return res.status(403).send("403 - Link Expired");
+    }
+
+    const filePath = content.filePath;
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send("File not found");
+    }
+
+    // One-time view logic for files
+    if (content.oneTimeView) {
+      return res.download(filePath, content.originalFileName, async (err) => {
+        if (!err) {
+          try {
+            fs.unlinkSync(filePath);
+            await Content.deleteOne({ _id: content._id });
+          } catch (deleteErr) {
+            console.error("Delete error:", deleteErr);
+          }
+        }
+      });
+    }
+
+    res.download(filePath, content.originalFileName);
+
+  } catch (err) {
+    console.error("Download error:", err);
+    res.status(500).send("Download error");
+  }
 };
 
 function renderPage(title, bodyContent) {
-    return `
+  return `
   <!DOCTYPE html>
   <html>
   <head>
@@ -190,7 +188,10 @@ function renderPage(title, bodyContent) {
     <style>
       body {
         margin: 0;
-        font-family: Arial, sans-serif;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont,
+             "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+             "Open Sans", "Helvetica Neue", sans-serif;
+
         background: #f3f4f6;
         display: flex;
         justify-content: center;
@@ -204,17 +205,8 @@ function renderPage(title, bodyContent) {
         border-radius: 10px;
         box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         text-align: center;
-        max-width: 500px;
+        max-width: 600px;
         width: 100%;
-      }
-
-      .content-box {
-        margin: 20px 0;
-        padding: 20px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        background: #fafafa;
-        word-wrap: break-word;
       }
 
       .btn {
@@ -223,7 +215,7 @@ function renderPage(title, bodyContent) {
         border-radius: 6px;
         cursor: pointer;
         font-size: 14px;
-        margin-top: 10px;
+        margin-top: 15px;
       }
 
       .btn-blue {
@@ -231,17 +223,9 @@ function renderPage(title, bodyContent) {
         color: white;
       }
 
-      .btn-blue:hover {
-        background: #1d4ed8;
-      }
-
       .btn-green {
         background: #16a34a;
         color: white;
-      }
-
-      .btn-green:hover {
-        background: #15803d;
       }
     </style>
   </head>

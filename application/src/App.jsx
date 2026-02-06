@@ -13,6 +13,8 @@ function App() {
   const [expiry, setExpiry] = useState(null);
   const [link, setLink] = useState("");
   const [loading, setLoading] = useState(false);
+  const [oneTimeView, setOneTimeView] = useState(false);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -44,7 +46,7 @@ function App() {
         formData.append("expiry", expiry.toISOString());
       }
 
-
+      formData.append("oneTimeView", oneTimeView);
       const res = await axios.post("http://localhost:5000/content/upload", formData)
 
 
@@ -155,6 +157,14 @@ function App() {
 
 
 
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={oneTimeView}
+                onChange={(e) => setOneTimeView(e.target.checked)}
+              />
+              <label>Enable One-Time View</label>
+            </div>
 
             <button
               type="submit"
