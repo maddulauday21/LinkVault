@@ -17,6 +17,7 @@ app.use(express.json());
 app.use("/content", contentRoutes);
 
 cron.schedule("*/1 * * * *", () => {
+    console.log("Running cron job...");
     cleanupExpired();
 });
 
