@@ -15,6 +15,9 @@ function App() {
   const [link, setLink] = useState("");
   const [loading, setLoading] = useState(false);
   const [oneTimeView, setOneTimeView] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
 
 
   const handleSubmit = async (e) => {
@@ -42,6 +45,9 @@ function App() {
       if (mode === "file") {
         formData.append("file", file);
       }
+      if (password) {
+        formData.append("password", password);
+      }
 
       if (expiry) {
         formData.append("expiry", expiry.toISOString());
@@ -64,6 +70,7 @@ function App() {
       setText("");
       setFile(null);
       setExpiry("");
+      setPassword("");
     } catch (error) {
       alert("Upload failed");
     } finally {
@@ -131,6 +138,26 @@ function App() {
               />
 
             )}
+            <label className="block font-medium mt-3">
+              Password (optional)
+            </label>
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border rounded-md p-3"
+                placeholder="Enter password"
+              />
+
+              <span
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 cursor-pointer"
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </span>
+            </div>
 
 
 
@@ -196,6 +223,7 @@ function App() {
             >
               ← Back
             </button>
+              
 
           </form>
         )}

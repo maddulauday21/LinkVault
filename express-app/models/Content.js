@@ -29,7 +29,12 @@ const ContentSchema = new mongoose.Schema({
 isConsumed: {
   type: Boolean,
   default: false
+},
+password: {
+  type: String,
+  default: null
 }
+
 
 
 });

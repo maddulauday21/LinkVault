@@ -1,6 +1,10 @@
 const express = require("express");
 const multer = require("multer");
 const { uploadContent, getContent } = require("../controllers/contentController");
+const { 
+    verifyPassword, 
+    otherFunction 
+} = require('../controllers/contentController');
 
 const router = express.Router();
 
@@ -19,6 +23,7 @@ const { downloadFile } = require("../controllers/contentController");
 
 router.get("/download/:id", downloadFile);
 
+router.post("/verify/:id", express.urlencoded({ extended: true }), verifyPassword);
 
 // IMPORTANT: multer handles multipart form-data
 router.post("/upload", upload.single("file"), uploadContent);
