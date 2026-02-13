@@ -1,7 +1,7 @@
 const cron = require("node-cron");
 const cleanupExpired = require("./controllers/cleanupController");
 
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");

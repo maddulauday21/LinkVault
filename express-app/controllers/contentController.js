@@ -11,7 +11,10 @@ const bcrypt = require("bcrypt");
 
 exports.uploadContent = async (req, res) => {
   try {
-    const { text, expiry, oneTimeView, password } = req.body;
+    const { text, expiry, oneTimeView, password, maxViews, maxDownloads } = req.body;
+
+
+
 
 
     if (!text && !req.file) {
@@ -38,6 +41,14 @@ exports.uploadContent = async (req, res) => {
     if (password && password.trim() !== "") {
       hashedPassword = await bcrypt.hash(password, 10);
     }
+    const parsedMaxViews = maxViews && !isNaN(maxViews) ? Number(maxViews) : null;
+    const parsedMaxDownloads = maxDownloads && !isNaN(maxDownloads) ? Number(maxDownloads) : null;
+    if (oneTimeView === "true" && (parsedMaxViews || parsedMaxDownloads)) {
+      return res.status(400).json({
+        message: "Cannot combine one-time view with max limit"
+      });
+    }
+
 
     const newContent = new Content({
       uniqueId,
@@ -47,6 +58,10 @@ exports.uploadContent = async (req, res) => {
       originalFileName: req.file ? req.file.originalname : null,
       oneTimeView: oneTimeView === "true",
       password: hashedPassword,
+      maxViews: maxViews ? Number(maxViews) : null,
+      maxDownloads: maxDownloads ? Number(maxDownloads) : null,
+
+
       isConsumed: false,  // NEW FIELD
       expiryTime
     });
@@ -81,33 +96,44 @@ exports.getContent = async (req, res) => {
       ));
     }
 
+    // ===== Expiry Check =====
     if (new Date() > content.expiryTime) {
+      await Content.deleteOne({ _id: content._id });
       return res.status(403).send(renderPage(
         "Link Expired",
         `<h2 style="color:red;">403 - Link Expired</h2>
          <p>This content is no longer available.</p>`
       ));
     }
-    // If password protected and not verified
+
+    // ===== Password Check =====
     if (content.password && req.query.auth !== "true") {
       return res.send(renderPasswordPage(content.uniqueId));
     }
 
-    // If one-time and already consumed
-    if (content.oneTimeView && content.isConsumed) {
-      return res.status(403).send(renderPage(
-        "Link Expired",
-        `<h2 style="color:red;">403 - Link Expired</h2>
-         <p>This link has already been used.</p>`
-      ));
-    }
-
-    // ================= TEXT =================
-
+    // ===== TEXT =====
     if (content.type === "text") {
-
+      // console.log("Current Views:", content.viewCount, "Max:", content.maxViews);
+      // ===== One-Time View Check =====
       if (content.oneTimeView) {
         await Content.deleteOne({ _id: content._id });
+      }
+
+      // ===== Max Views Check =====
+      if (content.maxViews !== null) {
+
+        if (content.viewCount >= content.maxViews) {
+          await Content.deleteOne({ _id: content._id });
+
+          return res.status(403).send(renderPage(
+            "Limit Exceeded",
+            `<h2 style="color:red;">403 - View Limit Exceeded</h2>
+         <p>This content has reached its maximum allowed views.</p>`
+          ));
+        }
+
+        content.viewCount += 1;
+        await content.save();
       }
 
       const safeText = content.textData
@@ -115,31 +141,40 @@ exports.getContent = async (req, res) => {
         .replace(/>/g, "&gt;");
 
       return res.send(renderPage("Shared Text", `
-        <h2 style="color:#2563eb;">Shared Text</h2>
+    <h2 style="color:#2563eb;">Shared Text</h2>
 
-        <pre style="
-          margin-top:20px;
-          padding:20px;
-          border:1px solid #ccc;
-          border-radius:8px;
-          background:#f9fafb;
-          white-space:pre-wrap;
-          text-align:left;
-          font-family:inherit;
-        ">
+    <pre style="
+      margin-top:20px;
+      padding:20px;
+      border:1px solid #ccc;
+      border-radius:8px;
+      background:#f9fafb;
+      white-space:pre-wrap;
+      text-align:left;
+      font-family:inherit;
+    ">
 ${safeText}
-        </pre>
-      `));
+    </pre>
+  `));
     }
 
-    // ================= FILE =================
 
+    // ===== FILE =====
     if (content.type === "file") {
 
+      // ---- Max Downloads Check ----
+      if (content.maxDownloads !== null && content.downloadCount >= content.maxDownloads) {
+        await Content.deleteOne({ _id: content._id });
+        return res.status(403).send(renderPage(
+          "Limit Exceeded",
+          `<h2 style="color:red;">403 - Download Limit Exceeded</h2>
+           <p>This file has reached its maximum allowed downloads.</p>`
+        ));
+      }
+
+      // ---- One Time View ----
       if (content.oneTimeView) {
-        // Mark link as consumed immediately
-        content.isConsumed = true;
-        await content.save();
+        await Content.deleteOne({ _id: content._id });
       }
 
       return res.send(renderPage("File Download", `
@@ -161,7 +196,6 @@ ${safeText}
 };
 
 
-
 // ============================
 // Download File
 // ============================
@@ -171,11 +205,19 @@ exports.downloadFile = async (req, res) => {
     const content = await Content.findOne({ uniqueId: req.params.id });
 
     if (!content) {
-      return res.status(403).send("403 - Invalid Link");
+      return res.status(403).send(renderPage(
+        "Invalid Link",
+        `<h2 style="color:red;">403 - Invalid Link</h2>
+     <p>This link does not exist.</p>`
+      ));
     }
 
     if (new Date() > content.expiryTime) {
-      return res.status(403).send("403 - Link Expired");
+      return res.status(403).send(renderPage(
+        "Link Expired",
+        `<h2 style="color:red;">403 - Link Expired</h2>
+         <p>This content is no longer available.</p>`
+      ));
     }
 
     const filePath = content.filePath;
@@ -183,8 +225,19 @@ exports.downloadFile = async (req, res) => {
     if (!fs.existsSync(filePath)) {
       return res.status(404).send("File not found");
     }
+    // Limit check
+    if (content.maxDownloads !== null && content.downloadCount >= content.maxDownloads) {
+      return res.status(403).send(renderPage(
+        "Limit Exceeded",
+        `<h2 style="color:red;">403 - Download Limit Exceeded</h2>
+     <p>This file has reached its maximum allowed downloads.</p>`
+      ));
+    }
+
 
     if (content.oneTimeView) {
+      content.downloadCount += 1;
+      await content.save();
 
       res.download(filePath, content.originalFileName, async (err) => {
         if (!err) {
@@ -197,6 +250,9 @@ exports.downloadFile = async (req, res) => {
       });
 
     } else {
+      content.downloadCount += 1;
+      await content.save();
+
       res.download(filePath, content.originalFileName);
     }
 

@@ -23,17 +23,40 @@ const ContentSchema = new mongoose.Schema({
         default: Date.now
     },
     oneTimeView: {
-  type: Boolean,
-  default: false
-},
-isConsumed: {
-  type: Boolean,
-  default: false
-},
-password: {
-  type: String,
-  default: null
-}
+        type: Boolean,
+        default: false
+    },
+    isConsumed: {
+        type: Boolean,
+        default: false
+    },
+    password: {
+        type: String,
+        default: null
+    },
+    maxViews: {
+        type: Number,
+        default: null
+    },
+    viewCount: {
+        type: Number,
+        default: 0
+    },
+
+    downloadCount: {
+        type: Number,
+        default: 0
+    },
+
+    maxViews: {
+        type: Number,
+        default: null
+    },
+
+    maxDownloads: {
+        type: Number,
+        default: null
+    }
 
 
 

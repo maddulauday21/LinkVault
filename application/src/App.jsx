@@ -17,6 +17,9 @@ function App() {
   const [oneTimeView, setOneTimeView] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [maxViews, setMaxViews] = useState("");
+  const [maxDownloads, setMaxDownloads] = useState("");
+
 
 
 
@@ -38,6 +41,15 @@ function App() {
 
       const formData = new FormData();
 
+      if (mode === "text" && maxViews) {
+        formData.append("maxViews", maxViews);
+      }
+
+      if (mode === "file" && maxDownloads) {
+        formData.append("maxDownloads", maxDownloads);
+      }
+
+
       if (mode === "text") {
         formData.append("text", text);
       }
@@ -53,12 +65,16 @@ function App() {
         formData.append("expiry", expiry.toISOString());
       }
 
+
       formData.append("oneTimeView", oneTimeView);
       const res = await axios.post("http://localhost:5000/content/upload", formData)
 
       setText("");
       setFile(null);
       setExpiry(null);
+      setMaxViews("");
+      setMaxDownloads("");
+
       setLink(res.data.link);
 
       if (fileInputRef.current) {
@@ -67,9 +83,7 @@ function App() {
 
 
       setLink(res.data.link);
-      setText("");
-      setFile(null);
-      setExpiry("");
+
       setPassword("");
     } catch (error) {
       alert("Upload failed");
@@ -127,6 +141,7 @@ function App() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
               />
+
             )}
 
             {mode === "file" && (
@@ -136,6 +151,7 @@ function App() {
                 ref={fileInputRef}
                 onChange={(e) => setFile(e.target.files[0])}
               />
+
 
             )}
             <label className="block font-medium mt-3">
@@ -158,6 +174,49 @@ function App() {
                 {showPassword ? "🙈" : "👁️"}
               </span>
             </div>
+           {mode === "text" && (
+  <div className="flex items-center gap-3 mt-3">
+    <label className="font-medium whitespace-nowrap">
+      Max Views (optional)
+    </label>
+
+    <input
+      type="number"
+      min="1"
+      value={maxViews}
+      onChange={(e) => {
+        setMaxViews(e.target.value);
+        if (e.target.value) setOneTimeView(false);
+      }}
+      className="w-24 border rounded-md p-2 text-center"
+      placeholder="e.g. 3"
+    />
+  </div>
+)}
+
+
+
+            {mode === "file" && (
+  <div className="flex items-center gap-3 mt-3">
+    <label className="font-medium whitespace-nowrap">
+      Max Downloads (optional)
+    </label>
+
+    <input
+      type="number"
+      min="1"
+      value={maxDownloads}
+      onChange={(e) => {
+        setMaxDownloads(e.target.value);
+        if (e.target.value) setOneTimeView(false);
+      }}
+      className="w-24 border rounded-md p-2 text-center"
+      placeholder="e.g. 3"
+    />
+  </div>
+)}
+
+
 
 
 
@@ -200,8 +259,16 @@ function App() {
               <input
                 type="checkbox"
                 checked={oneTimeView}
-                onChange={(e) => setOneTimeView(e.target.checked)}
+                onChange={(e) => {
+                  setOneTimeView(e.target.checked);
+
+                  if (e.target.checked) {
+                    setMaxViews("");
+                    setMaxDownloads("");
+                  }
+                }}
               />
+
               <label>Enable One-Time View</label>
             </div>
 
@@ -223,7 +290,7 @@ function App() {
             >
               ← Back
             </button>
-              
+
 
           </form>
         )}
