@@ -19,12 +19,16 @@ function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [maxViews, setMaxViews] = useState("");
   const [maxDownloads, setMaxDownloads] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
 
 
 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+
 
     if (mode === "text" && !text.trim()) {
       alert("Please enter text");
@@ -86,8 +90,13 @@ function App() {
 
       setPassword("");
     } catch (error) {
-      alert("Upload failed");
-    } finally {
+  if (error.response && error.response.data.message) {
+    setErrorMessage(error.response.data.message);
+  } else {
+    setErrorMessage("Something went wrong. Please try again.");
+  }
+}
+ finally {
       setLoading(false);
     }
   };
@@ -151,9 +160,15 @@ function App() {
                 ref={fileInputRef}
                 onChange={(e) => setFile(e.target.files[0])}
               />
+              
 
 
             )}
+            {errorMessage && (
+  <div className="bg-red-100 text-red-700 p-2 rounded text-sm">
+    {errorMessage}
+  </div>
+)}
             <label className="block font-medium mt-3">
               Password (optional)
             </label>
