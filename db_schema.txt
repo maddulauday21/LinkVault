@@ -1,0 +1,86 @@
+As I have used mongoDB with mongoose the following schema is used in this project:
+
+const mongoose = require("mongoose");
+const contentSchema = new mongoose.Schema({
+  uniqueId: {
+    type: String,
+    required: true,
+    unique: true
+  },
+
+  type: {
+    type: String,
+    enum: ["text", "file"],
+    required: true
+  },
+
+  textData: {
+    type: String,
+    default: null
+  },
+
+  filePath: {
+    type: String,
+    default: null
+  },
+
+  originalFileName: {
+    type: String,
+    default: null
+  },
+
+  expiryTime: {
+    type: Date,
+    required: true
+  },
+
+  password: {
+    type: String,   // stored as hashed value (bcrypt)
+    default: null
+  },
+
+  oneTimeView: {
+    type: Boolean,
+    default: false
+  },
+
+  maxViews: {
+    type: Number,
+    default: null
+  },
+
+  viewCount: {
+    type: Number,
+    default: 0
+  },
+
+  maxDownloads: {
+    type: Number,
+    default: null
+  },
+
+  downloadCount: {
+    type: Number,
+    default: 0
+  }
+
+}, {
+  timestamps: true
+});
+
+module.exports = mongoose.model("Content", contentSchema);
+
+// About each field
+UniqueId: This is used in unique link generation
+type: This stores the type of content (text/file)
+textDate: Stores the text content
+filePath: Stores path to uploaded file
+originalFileName: This stores the file name that was uploaded
+expiryTime: This stores the time that link should be expired by.
+password: Stores password if given to protect the content
+oneTimeView: Set to True, if one time view is checked.
+maxViews: Limit set by user for text content
+maxDownloads: Limit set by user for file content
+viewCount: Tracks the count of number of views
+downloadCount: Tracks the count of number of downloads 
+timestamps: Stores the time stamp of uploads
